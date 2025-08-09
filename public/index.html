@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Comparison between Sonnet4 + Octocode and GPT5</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        
+        .main-header {
+            text-align: center;
+            margin-bottom: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .main-title {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            color: #333;
+            font-weight: bold;
+        }
+        
+        .octocode-link {
+            color: #0366d6;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .octocode-link:hover {
+            text-decoration: underline;
+        }
+        
+        .container {
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 140px);
+        }
+        
+        .demo-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .demo-title {
+            background: #333;
+            color: white;
+            padding: 15px 20px;
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .demo-iframe {
+            flex: 1;
+            border: none;
+            width: 100%;
+        }
+        
+        .prompt-section {
+            margin-top: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .prompt-title {
+            margin: 0 0 15px 0;
+            font-size: 20px;
+            color: #333;
+            font-weight: bold;
+        }
+        
+        .prompt-textarea {
+            width: 100%;
+            height: 300px;
+            padding: 15px;
+            border: 2px solid #e1e4e8;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            background: #f6f8fa;
+            color: #24292e;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        
+        .prompt-textarea:focus {
+            outline: none;
+            border-color: #0366d6;
+            background: white;
+        }
+        
+        .prompt-button {
+            background: #0366d6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background-color 0.2s;
+        }
+        
+        .prompt-button:hover {
+            background: #0256cc;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .modal.show {
+            display: block;
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .modal-header {
+            background: #333;
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            margin: 0;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .close:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        
+        .modal-body {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .modal-prompt-textarea {
+            width: 100%;
+            height: 400px;
+            padding: 15px;
+            border: 2px solid #e1e4e8;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            background: #f6f8fa;
+            color: #24292e;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        
+        .modal-prompt-textarea:focus {
+            outline: none;
+            border-color: #0366d6;
+            background: white;
+        }
+        
+        .code-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background-color 0.2s;
+        }
+        
+        .code-button:hover {
+            background: #218838;
+        }
+        
+        .modal-code-textarea {
+            width: 100%;
+            height: 500px;
+            padding: 15px;
+            border: 2px solid #e1e4e8;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            background: #f6f8fa;
+            color: #24292e;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        
+        .modal-code-textarea:focus {
+            outline: none;
+            border-color: #0366d6;
+            background: white;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 2% auto;
+                max-height: 90vh;
+            }
+            
+            .modal-prompt-textarea {
+                height: 300px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-header">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 15px;">
+            <h1 class="main-title" style="margin: 0; flex: 1;">Three.js Comparison between Sonnet4 + Octocode and GPT5</h1>
+            <button class="prompt-button" onclick="openModal()">
+                📝 View Prompt
+            </button>
+        </div>
+        <p style="margin: 15px 0; color: #666; font-size: 16px; line-height: 1.6;">
+            This is a comparison of code generation using Sonnet4 + Octocode MCP vs GPT5<br>
+            <strong>Both AI systems used the identical prompt</strong> to generate their Three.js implementations
+        </p>
+        <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 15px; margin: 15px 0; color: #856404;">
+            <div style="font-weight: bold; margin-bottom: 8px; font-size: 16px;">⚠️ Key Difference - Three.js Versions:</div>
+            <div style="font-size: 15px; line-height: 1.5;">
+                <div style="margin-bottom: 5px;">📦 <strong>GPT5:</strong> Used three@0.164.1 (older version)</div>
+                <div>📦 <strong>Sonnet4 + Octocode MCP:</strong> Used three@0.179.1 (latest version)</div>
+            </div>
+        </div>
+        <p style="margin: 15px 0; color: #666; font-size: 14px;">
+            <strong>Date of research: 9/8/25</strong>
+        </p>
+        <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; align-items: center;">
+            <a href="https://github.com/bgauryy/octocode-mcp" target="_blank" class="octocode-link">
+                🐙 Octocode MCP Repository
+            </a>
+            <a href="https://github.com/bgauryy/octocode-sonnet4-gpt5-comparisson" target="_blank" class="octocode-link">
+                📊 Examples Repository
+            </a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="demo-panel">
+            <h2 class="demo-title">GPT5 - no Octocode</h2>
+            <div style="padding: 10px 20px; background: #f8f9fa; border-bottom: 1px solid #e1e4e8;">
+                <button class="code-button" onclick="openCodeModal()">
+                    💻 Show Code
+                </button>
+            </div>
+            <iframe class="demo-iframe" src="index_gpt5_no_octocode.html"></iframe>
+        </div>
+        
+        <div class="demo-panel">
+            <h2 class="demo-title">Sonnet4 + Octocode MCP</h2>
+            <div style="padding: 10px 20px; background: #f8f9fa; border-bottom: 1px solid #e1e4e8;">
+                <button class="code-button" onclick="openSonnetCodeModal()">
+                    💻 Show Code
+                </button>
+            </div>
+            <iframe class="demo-iframe" src="index_sonnet4_with_octocode.html"></iframe>
+        </div>
+    </div>
+    
+    <!-- Modal -->
+    <div id="promptModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Used Prompt</h2>
+                <button class="close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea class="modal-prompt-textarea" readonly>Create a single, self-contained HTML file that renders an animated 3D scene using the latest stable Three.js loaded from a public CDN (module imports). No build tools.
+
+IMPORTANT:
+Research step (use Octocode MCP)
+
+    Use Octocode MCP to conduct deep research before coding:
+
+        Retrieve the latest Three.js documentation, implementaion files and examples implementation files - read all 
+
+        Search GitHub for additional examples that use the latest Three.js version.
+
+        Incorporate best practices discovered during research into the implementation
+
+        Get many examples and read all threejs docs and implementaions
+
+
+Scene requirements
+
+    Ocean environment with subtle fog and a moving water surface (shader or scrolling normal map; no external textures).
+
+    A pink octopus made from geometries. Eight tentacles animated simulate swimming. The body should have a simple lambert/standard material with rim-light effect.
+
+    It has 2 big eyes and it swimming acroos the ocean
+
+    Soft lighting: at least one directional light and ambient or hemisphere light.
+
+    Camera orbit interaction using OrbitControls.
+
+    Responsive canvas that handles window resize.
+
+    Make it look amazing
+
+    Animation loop at ~60 FPS on a typical laptop; avoid heavy geometry.
+
+Constraints
+
+    Do not fetch external assets (models, images, fonts). Everything must be generated at runtime.
+
+    Use ES modules with explicit imports for three and OrbitControls from the same CDN. Pin to "latest" if supported by the CDN; otherwise pin to the most recent release tag in the import URLs.
+
+    Use import maps (<script type="importmap">) to properly resolve module specifiers before the main script tag.
+
+    No TypeScript; plain JS inside a <script type="module">.
+
+    No console errors or warnings from browser execution
+
+    Don't search the web for anything
+
+Output
+
+    Return only the complete HTML file contents, starting with <!doctype html> and ending with </html>.
+
+    Include minimal CSS so the canvas fills the viewport.
+
+    Add brief inline comments explaining key parts (octopus construction, tentacle animation, water, lights).
+
+Acceptance criteria
+
+    Opening the file directly in a modern browser shows a pink octopus swimming in an ocean scene with moving water, working OrbitControls, and no console errors. Resize works without artifacts.</textarea>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Code Modal -->
+    <div id="codeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">GPT5 Generated Code</h2>
+                <button class="close" onclick="closeCodeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea class="modal-code-textarea" readonly><!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Octopus Ocean • Three.js (single file)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      /* Minimal CSS: canvas fills the viewport */
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #0c1f2a; /* matches fog/sea tones */
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+    <!-- Import map pins both three and its addons to the same CDN and version -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <script type="module">
+      // Import Three.js and OrbitControls via import map (same CDN + version)
+      import * as THREE from 'three';
+      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+      // ----- Renderer -----
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      document.body.appendChild(renderer.domElement);
+
+      // ----- Scene -----
+      const scene = new THREE.Scene();
+      const fogColor = new THREE.Color(0x0f3040);
+      scene.background = fogColor.clone();
+      scene.fog = new THREE.FogExp2(fogColor.getHex(), 0.025); // subtle ocean haze
+
+      // ----- Camera + Controls -----
+      const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(4, 2.2, 4.5);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.target.set(0, 0.6, 0); // look at the octopus
+      controls.update();
+
+      // ----- Lights (soft lighting) -----
+      // Hemisphere light for ambient sky-ocean tone
+      const hemi = new THREE.HemisphereLight(0x87b5ff, 0x174a55, 0.65);
+      scene.add(hemi);
+      // Directional light for soft highlights
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(5, 8, 3);
+      scene.add(dirLight);
+
+      // ----- Water surface (procedural, no external textures) -----
+      // Large plane with lightweight vertex displacement in shader
+      const waterSize = 200;
+      const waterSegs = 96;
+      const waterGeo = new THREE.PlaneGeometry(waterSize, waterSize, waterSegs, waterSegs);
+      const waterMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(0x145a73), // deep teal
+        metalness: 0.05,
+        roughness: 0.8,
+        transparent: true,
+        opacity: 0.98
+      });
+      let waterShader = null;
+      waterMat.onBeforeCompile = (shader) => {
+        // Uniforms to animate gentle waves
+        shader.uniforms.uTime = { value: 0 };
+        shader.uniforms.uAmp = { value: 0.35 };
+        shader.uniforms.uFreq = { value: 0.9 };
+        shader.uniforms.uSpeed = { value: 0.6 };
+        shader.vertexShader = shader.vertexShader
+          .replace(
+            '#include <common>',
+            `
+            #include <common>
+            uniform float uTime;
+            uniform float uAmp;
+            uniform float uFreq;
+            uniform float uSpeed;
+            `
+          )
+          .replace(
+            // Displace along local Z (plane is XY by default; mesh is rotated to lie horizontally)
+            '#include <begin_vertex>',
+            `
+            #include <begin_vertex>
+            float wave = sin((position.x + position.y) * uFreq * 0.3 + uTime * uSpeed)
+                       + 0.5 * sin((position.x - position.y) * uFreq * 0.55 - uTime * (uSpeed * 1.3));
+            transformed.z += uAmp * wave * 0.5;
+            `
+          );
+        // Slight color variation with view angle for a subtle fresnel-like effect
+        shader.fragmentShader = shader.fragmentShader
+          .replace(
+            '#include <output_fragment>',
+            `
+            // faint horizon brightening
+            float vdot = dot(normalize(vNormal), normalize(-vViewPosition));
+            float fres = pow(1.0 - saturate(vdot), 2.0) * 0.15;
+            gl_FragColor.rgb += fres;
+            #include <output_fragment>
+            `
+          );
+
+        waterShader = shader; // store so we can update time
+      };
+      const water = new THREE.Mesh(waterGeo, waterMat);
+      water.rotation.x = -Math.PI * 0.5;
+      water.position.y = 0.0;
+      water.receiveShadow = false;
+      scene.add(water);
+
+      // ----- Octopus (basic geometries, no external models) -----
+      const octopus = new THREE.Group();
+      scene.add(octopus);
+
+      // Body: stretched sphere with rim-light effect via onBeforeCompile
+      const bodyGeo = new THREE.SphereGeometry(0.6, 32, 24);
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(0xff77aa), // pink
+        metalness: 0.05,
+        roughness: 0.6,
+        emissive: new THREE.Color(0x000000)
+      });
+      bodyMat.onBeforeCompile = (shader) => {
+        shader.uniforms.uRimColor = { value: new THREE.Color(0xffe6ff) };
+        shader.uniforms.uRimStrength = { value: 0.7 };
+        shader.fragmentShader = shader.fragmentShader
+          .replace(
+            '#include <common>',
+            `
+            #include <common>
+            uniform vec3 uRimColor;
+            uniform float uRimStrength;
+            `
+          )
+          .replace(
+            '#include <emissivemap_fragment>',
+            `
+            #include <emissivemap_fragment>
+            // Rim-light: brighter on grazing angles, adds to emissive so it remains soft
+            float rim = 1.0 - saturate(dot(normalize(vNormal), normalize(-vViewPosition)));
+            rim = pow(rim, 2.0);
+            totalEmissiveRadiance += uRimColor * rim * uRimStrength;
+            `
+          );
+      };
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.scale.set(1.0, 1.15, 1.0); // slightly taller
+      body.position.y = 0.8;
+      octopus.add(body);
+
+      // Eyes: tiny spheres (basic geometry)
+      const eyeMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5, metalness: 0.0 });
+      const eyeGeo = new THREE.SphereGeometry(0.05, 12, 10);
+      const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+      const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+      eyeL.position.set(0.18, 0.93, 0.46);
+      eyeR.position.set(-0.18, 0.93, 0.46);
+      body.add(eyeL, eyeR);
+
+      // Tentacles: 8 chains of lightweight cylinder segments animated by phase-shifted sine waves
+      const tentacles = []; // store chains for animation
+      const tentacleCount = 8;
+      const segmentCount = 12;
+      const segmentLength = 0.22;
+      const baseRadius = 0.12;
+
+      function createTentacleChain() {
+        // Root object for the tentacle chain
+        const root = new THREE.Object3D();
+        const joints = [];
+        let parent = root;
+
+        // Pinkish tentacle material (reuse body color family)
+        const tMaterial = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(0xff88bb),
+          metalness: 0.05,
+          roughness: 0.65
+        });
+
+        for (let i = 0; i < segmentCount; i++) {
+          const t = 1 - i / (segmentCount - 1);
+          const rTop = baseRadius * (0.55 + 0.45 * t) * 0.9;
+          const rBottom = baseRadius * (0.45 + 0.35 * t) * 0.9;
+
+          // Cylinder aligned along Y; we'll hinge at the top by offsetting the mesh
+          const geo = new THREE.CylinderGeometry(rTop, rBottom, segmentLength, 8, 1, true);
+          const joint = new THREE.Object3D();
+          const mesh = new THREE.Mesh(geo, tMaterial);
+          mesh.position.y = -segmentLength * 0.5; // pivot at the segment's top
+          joint.add(mesh);
+
+          parent.add(joint);
+          joints.push(joint);
+
+          // Next joint starts at end of this segment
+          const next = new THREE.Object3D();
+          next.position.y = -segmentLength;
+          joint.add(next);
+          parent = next;
+        }
+        return { root, joints };
+      }
+
+      // Arrange 8 tentacles around the body base
+      const radiusAround = 0.45;
+      for (let i = 0; i < tentacleCount; i++) {
+        const angle = (i / tentacleCount) * Math.PI * 2;
+        const base = new THREE.Object3D();
+        base.position.set(Math.cos(angle) * radiusAround, 0.65, Math.sin(angle) * radiusAround);
+        base.rotation.y = angle + Math.PI * 0.5; // face outward
+        base.rotation.x = THREE.MathUtils.degToRad(12); // slight outward tilt
+        octopus.add(base);
+
+        const { root, joints } = createTentacleChain();
+        base.add(root);
+        tentacles.push({ base, joints, baseAngle: angle });
+      }
+
+      // ----- Animation state -----
+      const clock = new THREE.Clock();
+      let tAccum = 0;
+
+      // ----- Resize handling -----
+      function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+      window.addEventListener('resize', onResize);
+
+      // ----- Main loop -----
+      function animate() {
+        const dt = clock.getDelta();
+        tAccum += dt;
+
+        // Animate water time uniform
+        if (waterShader) {
+          waterShader.uniforms.uTime.value = tAccum;
+        }
+
+        // Gentle bobbing/swim motion for the octopus body
+        const swim = Math.sin(tAccum * 1.2) * 0.06;
+        octopus.position.y = 0.25 + swim * 0.4;
+        octopus.position.x = Math.sin(tAccum * 0.25) * 0.15;
+        octopus.position.z = Math.cos(tAccum * 0.22) * 0.15;
+        octopus.rotation.y = Math.sin(tAccum * 0.5) * 0.2;
+
+        // Tentacle animation: phase-shifted sine along each chain
+        const waveSpeed = 2.2;
+        const segPhase = 0.6;
+        for (let idx = 0; idx < tentacles.length; idx++) {
+          const { joints, baseAngle } = tentacles[idx];
+          const basePhase = baseAngle * 1.2; // shift per tentacle around the body
+          for (let s = 0; s < joints.length; s++) {
+            const joint = joints[s];
+            const falloff = 1.0 - s / joints.length;
+            const amp = 0.35 * Math.pow(falloff, 0.7); // taper amplitude
+            const phase = waveSpeed * tAccum + basePhase + s * segPhase;
+
+            // Bend primarily around Z, with a slight X component for 3D motion
+            joint.rotation.z = amp * Math.sin(phase);
+            joint.rotation.x = 0.35 * amp * Math.cos(phase * 0.9);
+          }
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      }
+
+      // Small helper: show the octopus slightly above water for clarity
+      octopus.position.y = 0.25;
+
+      // Start!
+      animate();
+    </script>
+  </body>
+</html></textarea>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sonnet4 Code Modal -->
+    <div id="sonnetCodeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Sonnet4 + Octocode MCP Generated Code</h2>
+                <button class="close" onclick="closeSonnetCodeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea class="modal-code-textarea" readonly><!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Animated Pink Octopus in Ocean - Three.js</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #001e0f;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        Pink Octopus Swimming in Ocean<br/>
+        Mouse: Orbit camera | Scroll: Zoom
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Scene setup
+        let scene, camera, renderer, controls;
+        let octopus, tentacles = [];
+        let water, waterGeometry, waterMaterial;
+        let clock = new THREE.Clock();
+
+        init();
+        animate();
+
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x006994);
+            scene.fog = new THREE.FogExp2(0x006994, 0.002);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 10, 30);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 10;
+            controls.maxDistance = 100;
+            controls.maxPolarAngle = Math.PI * 0.495;
+
+            // Lighting setup
+            setupLighting();
+            
+            // Ocean surface
+            createOcean();
+            
+            // Create octopus
+            createOctopus();
+
+            // Event listeners
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function setupLighting() {
+            // Directional light (sun)
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -20;
+            directionalLight.shadow.camera.right = 20;
+            directionalLight.shadow.camera.top = 20;
+            directionalLight.shadow.camera.bottom = -20;
+            scene.add(directionalLight);
+
+            // Hemisphere light for soft ambient lighting
+            const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x006994, 0.6);
+            scene.add(hemisphereLight);
+
+            // Rim light effect
+            const rimLight = new THREE.DirectionalLight(0x87ceeb, 0.5);
+            rimLight.position.set(-5, 5, -5);
+            scene.add(rimLight);
+        }
+
+        function createOcean() {
+            // Create animated water surface using a plane with custom shader material
+            waterGeometry = new THREE.PlaneGeometry(200, 200, 50, 50);
+            
+            // Custom water shader material
+            waterMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 },
+                    color: { value: new THREE.Color(0x006994) },
+                    deepColor: { value: new THREE.Color(0x001e0f) }
+                },
+                vertexShader: `
+                    uniform float time;
+                    varying vec2 vUv;
+                    varying float vElevation;
+                    
+                    void main() {
+                        vUv = uv;
+                        
+                        vec4 modelPosition = modelMatrix * vec4(position, 1.0);
+                        
+                        // Create wave animation
+                        float elevation = sin(modelPosition.x * 0.3 + time * 2.0) * 0.5;
+                        elevation += sin(modelPosition.z * 0.2 + time * 1.5) * 0.3;
+                        elevation += sin(modelPosition.x * 0.1 + modelPosition.z * 0.1 + time) * 0.2;
+                        
+                        modelPosition.y += elevation;
+                        vElevation = elevation;
+                        
+                        vec4 viewPosition = viewMatrix * modelPosition;
+                        vec4 projectedPosition = projectionMatrix * viewPosition;
+                        
+                        gl_Position = projectedPosition;
+                    }
+                `,
+                fragmentShader: `
+                    uniform vec3 color;
+                    uniform vec3 deepColor;
+                    varying vec2 vUv;
+                    varying float vElevation;
+                    
+                    void main() {
+                        vec3 finalColor = mix(deepColor, color, vElevation + 0.5);
+                        gl_FragColor = vec4(finalColor, 0.8);
+                    }
+                `,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+
+            water = new THREE.Mesh(waterGeometry, waterMaterial);
+            water.rotation.x = -Math.PI * 0.5;
+            water.position.y = -5;
+            water.receiveShadow = true;
+            scene.add(water);
+        }
+
+        function createOctopus() {
+            octopus = new THREE.Group();
+            
+            // Octopus body (main sphere)
+            const bodyGeometry = new THREE.SphereGeometry(2, 16, 12);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xff69b4,
+                transparent: true,
+                opacity: 0.9
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 2;
+            body.castShadow = true;
+            octopus.add(body);
+
+            // Eyes
+            const eyeGeometry = new THREE.SphereGeometry(0.4, 8, 6);
+            const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            
+            const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            leftEye.position.set(-0.8, 2.5, 1.5);
+            octopus.add(leftEye);
+            
+            const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            rightEye.position.set(0.8, 2.5, 1.5);
+            octopus.add(rightEye);
+
+            // Eye pupils
+            const pupilGeometry = new THREE.SphereGeometry(0.2, 6, 4);
+            const pupilMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            
+            const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+            leftPupil.position.set(-0.8, 2.5, 1.8);
+            octopus.add(leftPupil);
+            
+            const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+            rightPupil.position.set(0.8, 2.5, 1.8);
+            octopus.add(rightPupil);
+
+            // Create 8 tentacles
+            const tentacleMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xff1493,
+                transparent: true,
+                opacity: 0.9
+            });
+
+            for (let i = 0; i < 8; i++) {
+                const tentacle = new THREE.Group();
+                const angle = (i / 8) * Math.PI * 2;
+                
+                // Create tentacle segments
+                const segments = [];
+                for (let j = 0; j < 6; j++) {
+                    const segmentGeometry = new THREE.CylinderGeometry(
+                        0.3 - j * 0.04, // top radius (gets smaller)
+                        0.3 - (j + 1) * 0.04, // bottom radius
+                        1.5, // height
+                        8 // radial segments
+                    );
+                    const segment = new THREE.Mesh(segmentGeometry, tentacleMaterial);
+                    segment.position.y = -j * 1.3;
+                    segment.castShadow = true;
+                    
+                    segments.push(segment);
+                    tentacle.add(segment);
+                }
+                
+                tentacle.position.x = Math.cos(angle) * 1.8;
+                tentacle.position.z = Math.sin(angle) * 1.8;
+                tentacle.position.y = 0.5;
+                
+                tentacles.push({ group: tentacle, segments: segments, angle: angle });
+                octopus.add(tentacle);
+            }
+
+            octopus.position.y = 5;
+            scene.add(octopus);
+        }
+
+        function animateOctopus(time) {
+            // Swimming motion - octopus moves up and down
+            octopus.position.y = 5 + Math.sin(time * 1.5) * 1.5;
+            octopus.rotation.y = Math.sin(time * 0.5) * 0.3;
+
+            // Animate tentacles with wave-like motion
+            tentacles.forEach((tentacle, index) => {
+                const baseTime = time + index * 0.5;
+                
+                tentacle.segments.forEach((segment, segmentIndex) => {
+                    const segmentTime = baseTime + segmentIndex * 0.3;
+                    
+                    // Create wave motion along tentacle
+                    segment.rotation.x = Math.sin(segmentTime * 2) * 0.4;
+                    segment.rotation.z = Math.cos(segmentTime * 1.5) * 0.3;
+                    
+                    // Add some lateral movement
+                    const lateralOffset = Math.sin(segmentTime * 3) * 0.2;
+                    segment.position.x = lateralOffset;
+                    segment.position.z = Math.cos(segmentTime * 2.5) * 0.1;
+                });
+                
+                // Move entire tentacle in swimming pattern
+                tentacle.group.rotation.x = Math.sin(baseTime * 2) * 0.5;
+                tentacle.group.rotation.z = Math.cos(baseTime * 1.8) * 0.4;
+            });
+
+            // Make octopus move forward slowly
+            octopus.position.x = Math.sin(time * 0.3) * 10;
+            octopus.position.z = Math.cos(time * 0.2) * 8;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const elapsedTime = clock.getElapsedTime();
+            
+            // Update water animation
+            if (waterMaterial) {
+                waterMaterial.uniforms.time.value = elapsedTime;
+            }
+            
+            // Animate octopus
+            animateOctopus(elapsedTime);
+            
+            // Update controls
+            controls.update();
+            
+            // Render
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html></textarea>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function openModal() {
+            document.getElementById('promptModal').classList.add('show');
+        }
+        
+        function closeModal() {
+            document.getElementById('promptModal').classList.remove('show');
+        }
+        
+        function openCodeModal() {
+            document.getElementById('codeModal').classList.add('show');
+        }
+        
+        function closeCodeModal() {
+            document.getElementById('codeModal').classList.remove('show');
+        }
+        
+        function openSonnetCodeModal() {
+            document.getElementById('sonnetCodeModal').classList.add('show');
+        }
+        
+        function closeSonnetCodeModal() {
+            document.getElementById('sonnetCodeModal').classList.remove('show');
+        }
+        
+        // Close modal when clicking outside of it
+        window.onclick = function(event) {
+            const promptModal = document.getElementById('promptModal');
+            const codeModal = document.getElementById('codeModal');
+            const sonnetCodeModal = document.getElementById('sonnetCodeModal');
+            if (event.target === promptModal) {
+                closeModal();
+            }
+            if (event.target === codeModal) {
+                closeCodeModal();
+            }
+            if (event.target === sonnetCodeModal) {
+                closeSonnetCodeModal();
+            }
+        }
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+                closeCodeModal();
+                closeSonnetCodeModal();
+            }
+        });
+    </script>
+</body>
+</html>
