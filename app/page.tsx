@@ -4,7 +4,7 @@ export default function Home() {
       <iframe 
         src="/index.html" 
         className="w-full h-full border-0"
-        title="Three.js Comparison between Sonnet4 + Octocode and GPT5"
+        title="Three.js Comparison between GPT5 & Sonnet4 Using Octocode MCP"
       />
     </div>
   );
