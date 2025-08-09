@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Three.js Ocean Scene with Swimming Octopus</title>
+  <style>
+    /* Minimal CSS to make canvas fill viewport */
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      background: #001122;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+  <!-- Import map for module resolution -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <script type="module">
+    // Import Three.js and OrbitControls from CDN
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // Scene setup with fog for ocean depth
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x001122, 20, 80);
+
+    // Camera setup - positioned for good octopus view
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(0, 8, 20);
+
+    // Renderer setup with antialiasing
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Optimize for performance
+    document.body.appendChild(renderer.domElement);
+
+    // OrbitControls for camera interaction
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.screenSpacePanning = false;
+    controls.minDistance = 5;
+    controls.maxDistance = 50;
+    controls.maxPolarAngle = Math.PI / 2.2; // Prevent camera going under water
+
+    // Soft lighting setup - hemisphere light for natural ocean lighting
+    const hemisphereLight = new THREE.HemisphereLight(0x87CEEB, 0x000080, 0.6);
+    scene.add(hemisphereLight);
+
+    // Directional light simulating sunlight with rim-light effect
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(10, 15, 5);
+    directionalLight.castShadow = false; // Disabled for performance
+    scene.add(directionalLight);
+
+    // Additional rim light for octopus
+    const rimLight = new THREE.DirectionalLight(0x87CEEB, 0.4);
+    rimLight.position.set(-10, 5, -5);
+    scene.add(rimLight);
+
+    // Ocean water surface with animated shader
+    const oceanGeometry = new THREE.PlaneGeometry(200, 200, 128, 128);
+    const oceanMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        color1: { value: new THREE.Color(0x001122) },
+        color2: { value: new THREE.Color(0x003366) }
+      },
+      vertexShader: `
+        uniform float time;
+        varying vec2 vUv;
+        varying float vElevation;
+        
+        void main() {
+          vUv = uv;
+          vec4 modelPosition = modelMatrix * vec4(position, 1.0);
+          
+          // Create multiple wave patterns for realistic ocean movement
+          float elevation = sin(modelPosition.x * 0.05 + time * 0.8) * 0.3;
+          elevation += sin(modelPosition.z * 0.03 + time * 0.6) * 0.4;
+          elevation += sin(modelPosition.x * 0.08 + modelPosition.z * 0.05 + time * 1.2) * 0.2;
+          
+          modelPosition.y += elevation;
+          vElevation = elevation;
+          
+          vec4 viewPosition = viewMatrix * modelPosition;
+          vec4 projectedPosition = projectionMatrix * viewPosition;
+          
+          gl_Position = projectedPosition;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 color1;
+        uniform vec3 color2;
+        varying vec2 vUv;
+        varying float vElevation;
+        
+        void main() {
+          // Mix colors based on wave elevation for depth effect
+          vec3 color = mix(color1, color2, vElevation + 0.5);
+          gl_FragColor = vec4(color, 0.9);
+        }
+      `,
+      transparent: true,
+      side: THREE.DoubleSide
+    });
+    
+    const ocean = new THREE.Mesh(oceanGeometry, oceanMaterial);
+    ocean.rotation.x = -Math.PI / 2;
+    ocean.position.y = -2;
+    scene.add(ocean);
+
+    // Octopus group for easy animation
+    const octopus = new THREE.Group();
+
+    // Octopus body - main sphere with pink material
+    const bodyGeometry = new THREE.SphereGeometry(1.8, 32, 32);
+    const bodyMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xff69b4,
+      roughness: 0.4,
+      metalness: 0.1
+    });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.position.y = 2;
+    octopus.add(body);
+
+    // Octopus eyes - big expressive eyes
+    const eyeGeometry = new THREE.SphereGeometry(0.4, 24, 24);
+    const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const pupilGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+    const pupilMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+
+    // Left eye
+    const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+    leftEye.position.set(-0.6, 2.8, 1.4);
+    const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+    leftPupil.position.set(-0.6, 2.8, 1.65);
+    octopus.add(leftEye);
+    octopus.add(leftPupil);
+
+    // Right eye
+    const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+    rightEye.position.set(0.6, 2.8, 1.4);
+    const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+    rightPupil.position.set(0.6, 2.8, 1.65);
+    octopus.add(rightEye);
+    octopus.add(rightPupil);
+
+    // Eight animated tentacles
+    const tentacles = [];
+    const tentacleGeometry = new THREE.CylinderGeometry(0.15, 0.25, 4, 16, 8);
+    const tentacleMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xff69b4,
+      roughness: 0.4,
+      metalness: 0.1
+    });
+
+    for (let i = 0; i < 8; i++) {
+      const tentacle = new THREE.Mesh(tentacleGeometry, tentacleMaterial);
+      const angle = (i / 8) * Math.PI * 2;
+      const radius = 1.2;
+      
+      tentacle.position.set(
+        Math.cos(angle) * radius,
+        0.5,
+        Math.sin(angle) * radius
+      );
+      tentacle.rotation.z = Math.PI / 2;
+      tentacle.rotation.y = angle;
+      
+      octopus.add(tentacle);
+      tentacles.push(tentacle);
+    }
+
+    // Position octopus in scene
+    octopus.position.y = 2;
+    scene.add(octopus);
+
+    // Animation variables
+    const clock = new THREE.Clock();
+    let swimDirection = 0;
+
+    // Main animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const elapsedTime = clock.getElapsedTime();
+
+      // Animate ocean waves
+      oceanMaterial.uniforms.time.value = elapsedTime;
+
+      // Octopus swimming motion - gentle up/down bobbing
+      octopus.position.y = 2 + Math.sin(elapsedTime * 1.5) * 0.5;
+
+      // Octopus swimming across the ocean in a figure-8 pattern
+      const swimRadius = 8;
+      octopus.position.x = Math.sin(elapsedTime * 0.3) * swimRadius;
+      octopus.position.z = Math.sin(elapsedTime * 0.6) * swimRadius * 0.5;
+
+      // Rotate octopus to face swimming direction
+      swimDirection += (Math.atan2(
+        Math.sin(elapsedTime * 0.3) * swimRadius,
+        Math.sin(elapsedTime * 0.6) * swimRadius * 0.5
+      ) - swimDirection) * 0.05;
+      octopus.rotation.y = swimDirection + Math.PI / 2;
+
+      // Animate tentacles with swimming motion
+      tentacles.forEach((tentacle, index) => {
+        // Each tentacle waves with different phase for realistic swimming
+        const phase = elapsedTime * 3 + index * 0.8;
+        tentacle.rotation.x = Math.sin(phase) * 0.4;
+        tentacle.rotation.z = Math.PI / 2 + Math.cos(phase * 0.7) * 0.2;
+      });
+
+      // Animate eyes to look around occasionally
+      const eyeLookTime = Math.sin(elapsedTime * 0.5) * 0.1;
+      leftPupil.position.x = -0.6 + eyeLookTime;
+      rightPupil.position.x = 0.6 + eyeLookTime;
+
+      // Update controls and render
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // Handle window resize for responsiveness
+    window.addEventListener('resize', () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      
+      // Update camera aspect ratio
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      
+      // Update renderer size
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    });
+
+    // Start the animation loop
+    animate();
+  </script>
+</body>
+</html>

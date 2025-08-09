@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Three.js Octopus Ocean (ESM, Import Map)</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { background: #06141d; overflow: hidden; }
+      canvas { display: block; }
+      .hint { position: fixed; left: 12px; bottom: 10px; color: #9ecae1; font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; opacity: 0.85; }
+    </style>
+
+    <!-- Import map: pin Three.js to a stable version and route addons/ -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="hint">Drag to orbit • Scroll to zoom</div>
+
+    <script type="module">
+      import * as THREE from 'three';
+      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+      // Renderer
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      document.body.appendChild(renderer.domElement);
+
+      // Scene & fog (ocean haze)
+      const scene = new THREE.Scene();
+      const fogColor = new THREE.Color(0x082230);
+      scene.background = fogColor.clone();
+      scene.fog = new THREE.FogExp2(fogColor, 0.045);
+
+      // Camera & controls
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+      camera.position.set(4, 2.2, 6);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.target.set(0, 0.6, 0);
+
+      // Lighting: hemisphere (soft ambient) + directional (sun)
+      const hemi = new THREE.HemisphereLight(0x6ec6ff, 0x12324a, 0.7);
+      scene.add(hemi);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(-5, 5, 2);
+      scene.add(dirLight);
+
+      // Ocean surface: standard material with onBeforeCompile to add procedural waves
+      const waveUniforms = { uTime: { value: 0 } };
+      const waterMat = new THREE.MeshStandardMaterial({
+        color: 0x1b3a4b,
+        roughness: 0.92,
+        metalness: 0.0,
+        envMapIntensity: 0.5
+      });
+
+      // Inject vertex displacement and normal from analytic derivatives for nice lighting
+      waterMat.onBeforeCompile = (shader) => {
+        shader.uniforms.uTime = waveUniforms.uTime;
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', `#include <common>\nuniform float uTime;\n\n// Two directional gerstner-like waves (lightweight)\nfloat waveHeight(vec2 p, out vec2 grad) {\n  // Wave 1\n  vec2 d1 = normalize(vec2(1.0, 0.2));\n  float A1 = 0.08;\n  float w1 = 2.0;\n  float s1 = 0.6;\n  float phase1 = dot(d1, p) * w1 + uTime * 0.8 * s1;\n  float h1 = A1 * sin(phase1);\n  float dh1 = A1 * w1 * cos(phase1);\n\n  // Wave 2\n  vec2 d2 = normalize(vec2(-0.4, 1.0));\n  float A2 = 0.05;\n  float w2 = 1.2;\n  float s2 = 0.5;\n  float phase2 = dot(d2, p) * w2 + uTime * 1.2 * s2;\n  float h2 = A2 * sin(phase2);\n  float dh2 = A2 * w2 * cos(phase2);\n\n  grad = vec2(dh1 * d1.x + dh2 * d2.x, dh1 * d1.y + dh2 * d2.y);\n  return h1 + h2;\n}\n\n// Compute object-space normal from height field gradient (global function)\nvec3 displacedNormal(vec3 pos) {\n  vec2 g;\n  float h = waveHeight(pos.xz, g);\n  vec3 n = normalize(vec3(-g.x, 1.0, -g.y));\n  return n;\n}`)
+          .replace('#include <beginnormal_vertex>', `\n// Use displaced normal computed from the height field\nvec3 objectNormal = displacedNormal(position);`)
+          .replace('#include <begin_vertex>', `\n// Displace vertex along Y by sum of waves\nvec2 gradTmp;\nfloat h = waveHeight(position.xz, gradTmp);\nvec3 transformed = vec3(position.x, position.y + h, position.z);`);
+      };
+
+      const waterGeom = new THREE.PlaneGeometry(200, 200, 128, 128);
+      const water = new THREE.Mesh(waterGeom, waterMat);
+      water.rotation.x = -Math.PI / 2;
+      water.position.y = 0.0;
+      scene.add(water);
+
+      // Octopus construction
+      const octopus = new THREE.Group();
+      scene.add(octopus);
+      octopus.position.set(0, 0.9, 0);
+
+      // Body: sphere scaled, with rim-light effect using onBeforeCompile on Standard material
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff77aa, roughness: 0.7, metalness: 0.0, emissive: 0x000000 });
+      const rimUniforms = {
+        rimColor: { value: new THREE.Color(0xffb6d8) },
+        rimPower: { value: 2.0 },
+        rimStrength: { value: 0.6 }
+      };
+      bodyMat.onBeforeCompile = (shader) => {
+        shader.uniforms.rimColor = rimUniforms.rimColor;
+        shader.uniforms.rimPower = rimUniforms.rimPower;
+        shader.uniforms.rimStrength = rimUniforms.rimStrength;
+        // Declare rim uniforms in fragment shader global scope
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', `#include <common>\nuniform vec3 rimColor;\nuniform float rimPower;\nuniform float rimStrength;`)
+          .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n// Simple rim-light: brighter edges opposite the view direction\nfloat rim = 1.0 - saturate(dot(normalize(normal), normalize(vViewPosition)));\nrim = pow(rim, rimPower);\nvec3 rimCol = rimColor * rim * rimStrength;\ntotalEmissiveRadiance += rimCol;`);
+      };
+
+      const bodyGeom = new THREE.SphereGeometry(0.6, 32, 24);
+      const body = new THREE.Mesh(bodyGeom, bodyMat);
+      body.scale.set(1.0, 0.85, 1.0); // squash slightly
+      body.castShadow = false;
+      body.receiveShadow = false;
+      octopus.add(body);
+
+      // Eyes: two white spheres with darker pupils
+      const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, metalness: 0.0 });
+      const pupilMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6, metalness: 0.0 });
+      const eyeWhiteGeom = new THREE.SphereGeometry(0.14, 20, 16);
+      const pupilGeom = new THREE.SphereGeometry(0.06, 16, 12);
+
+      function createEye(offsetX) {
+        const eye = new THREE.Group();
+        const white = new THREE.Mesh(eyeWhiteGeom, eyeWhiteMat);
+        const pupil = new THREE.Mesh(pupilGeom, pupilMat);
+        white.position.set(0, 0, 0);
+        pupil.position.set(0, 0, 0.11);
+        eye.add(white);
+        eye.add(pupil);
+        eye.position.set(offsetX, 0.02, 0.5);
+        eye.rotation.x = -0.05; // slight tilt
+        return eye;
+      }
+
+      const leftEye = createEye(-0.22);
+      const rightEye = createEye(0.22);
+      octopus.add(leftEye, rightEye);
+
+      // Tentacles: 8 chains of short tapered cylinders, animated by sinusoidal rotations
+      const tentacles = [];
+      const tentacleCount = 8;
+      const segmentCount = 12;
+      const segmentLength = 0.18;
+      const baseRadius = 0.11;
+
+      const makeTentacle = (angle) => {
+        const root = new THREE.Group();
+        // Position roots around the body base circle
+        const r = 0.45;
+        root.position.set(Math.cos(angle) * r, -0.35, Math.sin(angle) * r);
+        root.rotation.y = angle + Math.PI; // face outward
+        octopus.add(root);
+
+        let parent = root;
+        const segments = [];
+        for (let i = 0; i < segmentCount; i++) {
+          const t = i / (segmentCount - 1);
+          const radiusTop = THREE.MathUtils.lerp(baseRadius * 0.9, baseRadius * 0.2, t);
+          const radiusBottom = THREE.MathUtils.lerp(baseRadius * 0.8, baseRadius * 0.1, t);
+          const geom = new THREE.CylinderGeometry(radiusTop, radiusBottom, segmentLength, 10, 1, true);
+          const mat = new THREE.MeshStandardMaterial({ color: 0xff88bb, roughness: 0.8, metalness: 0.0 });
+          const seg = new THREE.Mesh(geom, mat);
+          seg.position.y = -segmentLength * 0.5;
+          const pivot = new THREE.Group();
+          pivot.position.y = -segmentLength * 0.5;
+          parent.add(seg);
+          seg.add(pivot);
+          parent = pivot;
+          segments.push({ seg, pivot });
+        }
+        return { root, segments };
+      };
+
+      for (let i = 0; i < tentacleCount; i++) {
+        const ang = (i / tentacleCount) * Math.PI * 2;
+        tentacles.push(makeTentacle(ang));
+      }
+
+      // Gentle bobbing animation for the body
+      const clock = new THREE.Clock();
+      let swimDir = new THREE.Vector3(1, 0, 0.5).normalize();
+      let swimSpeed = 0.35; // units per second
+      const swimBounds = 4.5;
+
+      function animate() {
+        const t = clock.getElapsedTime();
+        waveUniforms.uTime.value = t;
+
+        // Bobbing
+        const bob = Math.sin(t * 2.0) * 0.05;
+        octopus.position.y = 0.9 + bob;
+        octopus.rotation.y = Math.sin(t * 0.5) * 0.15;
+
+        // Swim across ocean; bounce within bounds
+        octopus.position.addScaledVector(swimDir, swimSpeed * clock.getDelta());
+        if (Math.abs(octopus.position.x) > swimBounds) { swimDir.x *= -1; }
+        if (Math.abs(octopus.position.z) > swimBounds) { swimDir.z *= -1; }
+        controls.target.lerp(octopus.position.clone().setY(0.6), 0.05);
+
+        // Tentacle undulation: phase along segments with per-tentacle offset
+        const basePhase = t * 2.8;
+        for (let i = 0; i < tentacles.length; i++) {
+          const tent = tentacles[i];
+          const tentPhase = basePhase + i * 0.55;
+          for (let j = 0; j < tent.segments.length; j++) {
+            const u = j / (tent.segments.length - 1);
+            const amp = (1.0 - u) * 0.45; // taper motion towards tip
+            const speed = 1.8;
+            const phase = tentPhase - u * 2.5;
+            const rx = Math.sin(phase * speed) * amp * 0.5;
+            const rz = Math.cos(phase * speed * 0.9) * amp * 0.35;
+            tent.segments[j].pivot.rotation.x = rx;
+            tent.segments[j].pivot.rotation.z = rz;
+          }
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      }
+
+      requestAnimationFrame(animate);
+
+      // Resize handling
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>
