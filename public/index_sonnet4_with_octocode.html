@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Animated Pink Octopus in Ocean - Three.js</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #001e0f;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        Pink Octopus Swimming in Ocean<br/>
+        Mouse: Orbit camera | Scroll: Zoom
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Scene setup
+        let scene, camera, renderer, controls;
+        let octopus, tentacles = [];
+        let water, waterGeometry, waterMaterial;
+        let clock = new THREE.Clock();
+
+        init();
+        animate();
+
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x006994);
+            scene.fog = new THREE.FogExp2(0x006994, 0.002);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 10, 30);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 10;
+            controls.maxDistance = 100;
+            controls.maxPolarAngle = Math.PI * 0.495;
+
+            // Lighting setup
+            setupLighting();
+            
+            // Ocean surface
+            createOcean();
+            
+            // Create octopus
+            createOctopus();
+
+            // Event listeners
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function setupLighting() {
+            // Directional light (sun)
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -20;
+            directionalLight.shadow.camera.right = 20;
+            directionalLight.shadow.camera.top = 20;
+            directionalLight.shadow.camera.bottom = -20;
+            scene.add(directionalLight);
+
+            // Hemisphere light for soft ambient lighting
+            const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x006994, 0.6);
+            scene.add(hemisphereLight);
+
+            // Rim light effect
+            const rimLight = new THREE.DirectionalLight(0x87ceeb, 0.5);
+            rimLight.position.set(-5, 5, -5);
+            scene.add(rimLight);
+        }
+
+        function createOcean() {
+            // Create animated water surface using a plane with custom shader material
+            waterGeometry = new THREE.PlaneGeometry(200, 200, 50, 50);
+            
+            // Custom water shader material
+            waterMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 },
+                    color: { value: new THREE.Color(0x006994) },
+                    deepColor: { value: new THREE.Color(0x001e0f) }
+                },
+                vertexShader: `
+                    uniform float time;
+                    varying vec2 vUv;
+                    varying float vElevation;
+                    
+                    void main() {
+                        vUv = uv;
+                        
+                        vec4 modelPosition = modelMatrix * vec4(position, 1.0);
+                        
+                        // Create wave animation
+                        float elevation = sin(modelPosition.x * 0.3 + time * 2.0) * 0.5;
+                        elevation += sin(modelPosition.z * 0.2 + time * 1.5) * 0.3;
+                        elevation += sin(modelPosition.x * 0.1 + modelPosition.z * 0.1 + time) * 0.2;
+                        
+                        modelPosition.y += elevation;
+                        vElevation = elevation;
+                        
+                        vec4 viewPosition = viewMatrix * modelPosition;
+                        vec4 projectedPosition = projectionMatrix * viewPosition;
+                        
+                        gl_Position = projectedPosition;
+                    }
+                `,
+                fragmentShader: `
+                    uniform vec3 color;
+                    uniform vec3 deepColor;
+                    varying vec2 vUv;
+                    varying float vElevation;
+                    
+                    void main() {
+                        vec3 finalColor = mix(deepColor, color, vElevation + 0.5);
+                        gl_FragColor = vec4(finalColor, 0.8);
+                    }
+                `,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+
+            water = new THREE.Mesh(waterGeometry, waterMaterial);
+            water.rotation.x = -Math.PI * 0.5;
+            water.position.y = -5;
+            water.receiveShadow = true;
+            scene.add(water);
+        }
+
+        function createOctopus() {
+            octopus = new THREE.Group();
+            
+            // Octopus body (main sphere)
+            const bodyGeometry = new THREE.SphereGeometry(2, 16, 12);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xff69b4,
+                transparent: true,
+                opacity: 0.9
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 2;
+            body.castShadow = true;
+            octopus.add(body);
+
+            // Eyes
+            const eyeGeometry = new THREE.SphereGeometry(0.4, 8, 6);
+            const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            
+            const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            leftEye.position.set(-0.8, 2.5, 1.5);
+            octopus.add(leftEye);
+            
+            const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            rightEye.position.set(0.8, 2.5, 1.5);
+            octopus.add(rightEye);
+
+            // Eye pupils
+            const pupilGeometry = new THREE.SphereGeometry(0.2, 6, 4);
+            const pupilMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            
+            const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+            leftPupil.position.set(-0.8, 2.5, 1.8);
+            octopus.add(leftPupil);
+            
+            const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+            rightPupil.position.set(0.8, 2.5, 1.8);
+            octopus.add(rightPupil);
+
+            // Create 8 tentacles
+            const tentacleMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xff1493,
+                transparent: true,
+                opacity: 0.9
+            });
+
+            for (let i = 0; i < 8; i++) {
+                const tentacle = new THREE.Group();
+                const angle = (i / 8) * Math.PI * 2;
+                
+                // Create tentacle segments
+                const segments = [];
+                for (let j = 0; j < 6; j++) {
+                    const segmentGeometry = new THREE.CylinderGeometry(
+                        0.3 - j * 0.04, // top radius (gets smaller)
+                        0.3 - (j + 1) * 0.04, // bottom radius
+                        1.5, // height
+                        8 // radial segments
+                    );
+                    const segment = new THREE.Mesh(segmentGeometry, tentacleMaterial);
+                    segment.position.y = -j * 1.3;
+                    segment.castShadow = true;
+                    
+                    segments.push(segment);
+                    tentacle.add(segment);
+                }
+                
+                tentacle.position.x = Math.cos(angle) * 1.8;
+                tentacle.position.z = Math.sin(angle) * 1.8;
+                tentacle.position.y = 0.5;
+                
+                tentacles.push({ group: tentacle, segments: segments, angle: angle });
+                octopus.add(tentacle);
+            }
+
+            octopus.position.y = 5;
+            scene.add(octopus);
+        }
+
+        function animateOctopus(time) {
+            // Swimming motion - octopus moves up and down
+            octopus.position.y = 5 + Math.sin(time * 1.5) * 1.5;
+            octopus.rotation.y = Math.sin(time * 0.5) * 0.3;
+
+            // Animate tentacles with wave-like motion
+            tentacles.forEach((tentacle, index) => {
+                const baseTime = time + index * 0.5;
+                
+                tentacle.segments.forEach((segment, segmentIndex) => {
+                    const segmentTime = baseTime + segmentIndex * 0.3;
+                    
+                    // Create wave motion along tentacle
+                    segment.rotation.x = Math.sin(segmentTime * 2) * 0.4;
+                    segment.rotation.z = Math.cos(segmentTime * 1.5) * 0.3;
+                    
+                    // Add some lateral movement
+                    const lateralOffset = Math.sin(segmentTime * 3) * 0.2;
+                    segment.position.x = lateralOffset;
+                    segment.position.z = Math.cos(segmentTime * 2.5) * 0.1;
+                });
+                
+                // Move entire tentacle in swimming pattern
+                tentacle.group.rotation.x = Math.sin(baseTime * 2) * 0.5;
+                tentacle.group.rotation.z = Math.cos(baseTime * 1.8) * 0.4;
+            });
+
+            // Make octopus move forward slowly
+            octopus.position.x = Math.sin(time * 0.3) * 10;
+            octopus.position.z = Math.cos(time * 0.2) * 8;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const elapsedTime = clock.getElapsedTime();
+            
+            // Update water animation
+            if (waterMaterial) {
+                waterMaterial.uniforms.time.value = elapsedTime;
+            }
+            
+            // Animate octopus
+            animateOctopus(elapsedTime);
+            
+            // Update controls
+            controls.update();
+            
+            // Render
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
